@@ -1,0 +1,23 @@
+{
+  "name": "obsidian-2-confluence",
+  "version": "0.1.0",
+  "description": "Sync Obsidian notes to Confluence using the REST API.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "rollup -c --watch",
+    "build": "rollup -c"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "obsidian": "^1.5.12",
+    "rollup": "^4.27.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "markdown-it": "^14.1.0"
+  }
+}
