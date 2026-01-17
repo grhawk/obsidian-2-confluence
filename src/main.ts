@@ -72,9 +72,10 @@ export default class ObsidianToConfluencePlugin extends Plugin {
 
   private async syncFile(file: TFile): Promise<void> {
     const content = await this.app.vault.read(file);
+    const contentWithoutFrontmatter = this.stripFrontmatter(content);
     const client = new ConfluenceClient(this.settings);
     const { markdown: withImages, attachments } =
-      await this.resolveImageEmbeds(content, file);
+      await this.resolveImageEmbeds(contentWithoutFrontmatter, file);
     const linkedContent = await this.resolveWikiLinks(withImages, file, client);
     const html = convertMarkdownToConfluence(linkedContent, {
       convertWikiLinks: false,
@@ -127,6 +128,22 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     if (resolvedPageId && attachments.length) {
       await this.uploadAttachments(resolvedPageId, attachments, client);
     }
+  }
+
+  private stripFrontmatter(content: string): string {
+    if (!content.startsWith("---")) {
+      return content;
+    }
+
+    const lines = content.split(/\r?\n/);
+    for (let i = 1; i < lines.length; i += 1) {
+      const line = lines[i].trim();
+      if (line === "---" || line === "...") {
+        return lines.slice(i + 1).join("\n");
+      }
+    }
+
+    return content;
   }
 
   private async resolveImageEmbeds(
