@@ -7,6 +7,25 @@ import {
   DEFAULT_SETTINGS
 } from "./settings";
 
+const IMAGE_ATTACHMENT_PREFIX = "confluence-attachment://";
+const SUPPORTED_IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "svg",
+  "webp",
+  "bmp",
+  "tif",
+  "tiff"
+]);
+
+interface ImageAttachment {
+  file: TFile;
+  filename: string;
+  placeholderUrl: string;
+}
+
 export default class ObsidianToConfluencePlugin extends Plugin {
   settings: ConfluenceSettings;
 
@@ -54,11 +73,14 @@ export default class ObsidianToConfluencePlugin extends Plugin {
   private async syncFile(file: TFile): Promise<void> {
     const content = await this.app.vault.read(file);
     const client = new ConfluenceClient(this.settings);
-    const linkedContent = await this.resolveWikiLinks(content, file, client);
+    const { markdown: withImages, attachments } =
+      await this.resolveImageEmbeds(content, file);
+    const linkedContent = await this.resolveWikiLinks(withImages, file, client);
     const html = convertMarkdownToConfluence(linkedContent, {
       convertWikiLinks: false,
       handleEmbedsAsText: true
     });
+    const htmlWithImages = this.replaceImagePlaceholders(html, attachments);
 
     const title = this.getTitleForFile(file);
 
@@ -69,7 +91,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
       const updated = await client.updatePageById(
         pageIdFromFrontmatter,
         title,
-        html
+        htmlWithImages
       );
       resolvedPageId = updated.id;
     } else {
@@ -78,13 +100,17 @@ export default class ObsidianToConfluencePlugin extends Plugin {
         title
       );
       if (existing) {
-        const updated = await client.updatePageById(existing.id, title, html);
+        const updated = await client.updatePageById(
+          existing.id,
+          title,
+          htmlWithImages
+        );
         resolvedPageId = updated.id;
       } else {
         const created = await client.createPage(
           this.settings.spaceKey,
           title,
-          html,
+          htmlWithImages,
           this.settings.parentPageId || undefined
         );
         resolvedPageId = created.id;
@@ -97,6 +123,179 @@ export default class ObsidianToConfluencePlugin extends Plugin {
         frontmatter[frontmatterKey] = resolvedPageId;
       });
     }
+
+    if (resolvedPageId && attachments.length) {
+      await this.uploadAttachments(resolvedPageId, attachments, client);
+    }
+  }
+
+  private async resolveImageEmbeds(
+    markdown: string,
+    sourceFile: TFile
+  ): Promise<{ markdown: string; attachments: ImageAttachment[] }> {
+    const attachments: ImageAttachment[] = [];
+    const attachmentByPath = new Map<string, ImageAttachment>();
+    const usedNames = new Map<string, number>();
+
+    const getOrCreateAttachment = (file: TFile): ImageAttachment => {
+      const existing = attachmentByPath.get(file.path);
+      if (existing) {
+        return existing;
+      }
+
+      const filename = this.buildUniqueFilename(file.name, usedNames);
+      const attachment: ImageAttachment = {
+        file,
+        filename,
+        placeholderUrl: `${IMAGE_ATTACHMENT_PREFIX}${encodeURIComponent(
+          filename
+        )}`
+      };
+
+      attachmentByPath.set(file.path, attachment);
+      attachments.push(attachment);
+      return attachment;
+    };
+
+    const lines = markdown.split(/\r?\n/);
+    let inCodeBlock = false;
+    let fenceMarker = "";
+    const processed: string[] = [];
+
+    for (const line of lines) {
+      const fenceMatch = line.match(/^\s*(```|~~~)/);
+      if (fenceMatch) {
+        const marker = fenceMatch[1];
+        if (!inCodeBlock) {
+          inCodeBlock = true;
+          fenceMarker = marker;
+        } else if (marker === fenceMarker) {
+          inCodeBlock = false;
+          fenceMarker = "";
+        }
+        processed.push(line);
+        continue;
+      }
+
+      if (inCodeBlock) {
+        processed.push(line);
+        continue;
+      }
+
+      let updated = line.replace(/!\[\[([^\]]+)\]\]/g, (match, inner) => {
+        const { baseTarget } = this.parseWikiLink(inner);
+        if (!baseTarget) {
+          return match;
+        }
+
+        const targetFile = this.resolveLinkTargetFile(baseTarget, sourceFile);
+        if (!targetFile || !this.isImageFile(targetFile)) {
+          return match;
+        }
+
+        const attachment = getOrCreateAttachment(targetFile);
+        return `![](${attachment.placeholderUrl})`;
+      });
+
+      updated = updated.replace(
+        /!\[([^\]]*)\]\(([^)]+)\)/g,
+        (match, _alt, rawPath) => {
+          const cleaned = rawPath.trim().replace(/^<|>$/g, "");
+          if (
+            cleaned.startsWith(IMAGE_ATTACHMENT_PREFIX) ||
+            /^https?:/i.test(cleaned) ||
+            /^data:/i.test(cleaned)
+          ) {
+            return match;
+          }
+
+          const normalized = decodeURIComponent(
+            cleaned.split("?")[0].split("#")[0]
+          );
+          const targetFile = this.resolveLinkTargetFile(normalized, sourceFile);
+          if (!targetFile || !this.isImageFile(targetFile)) {
+            return match;
+          }
+
+          const attachment = getOrCreateAttachment(targetFile);
+          return `![](${attachment.placeholderUrl})`;
+        }
+      );
+
+      processed.push(updated);
+    }
+
+    return { markdown: processed.join("\n"), attachments };
+  }
+
+  private replaceImagePlaceholders(
+    html: string,
+    attachments: ImageAttachment[]
+  ): string {
+    if (!attachments.length) {
+      return html;
+    }
+
+    let output = html;
+    for (const attachment of attachments) {
+      const escapedUrl = this.escapeRegExp(attachment.placeholderUrl);
+      const imgPattern = new RegExp(
+        `<img[^>]*src=[\"']${escapedUrl}[\"'][^>]*>`,
+        "g"
+      );
+      const filename = this.escapeHtmlAttribute(attachment.filename);
+      output = output.replace(
+        imgPattern,
+        `<ac:image><ri:attachment ri:filename="${filename}" /></ac:image>`
+      );
+    }
+
+    return output;
+  }
+
+  private async uploadAttachments(
+    pageId: string,
+    attachments: ImageAttachment[],
+    client: ConfluenceClient
+  ): Promise<void> {
+    for (const attachment of attachments) {
+      const data = await this.app.vault.readBinary(attachment.file);
+      await client.uploadAttachment(pageId, attachment.filename, data);
+    }
+  }
+
+  private buildUniqueFilename(
+    filename: string,
+    usedNames: Map<string, number>
+  ): string {
+    const count = usedNames.get(filename);
+    if (!count) {
+      usedNames.set(filename, 1);
+      return filename;
+    }
+
+    const nextCount = count + 1;
+    usedNames.set(filename, nextCount);
+    const extensionIndex = filename.lastIndexOf(".");
+    if (extensionIndex === -1) {
+      return `${filename}-${nextCount}`;
+    }
+
+    const base = filename.slice(0, extensionIndex);
+    const ext = filename.slice(extensionIndex);
+    return `${base}-${nextCount}${ext}`;
+  }
+
+  private isImageFile(file: TFile): boolean {
+    return SUPPORTED_IMAGE_EXTENSIONS.has(file.extension.toLowerCase());
+  }
+
+  private escapeHtmlAttribute(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
   }
 
   private async resolveWikiLinks(
@@ -207,10 +406,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     sourceFile: TFile,
     client: ConfluenceClient
   ): Promise<string | null> {
-    const targetFile = this.app.metadataCache.getFirstLinkpathDest(
-      baseTarget,
-      sourceFile.path
-    );
+    const targetFile = this.resolveLinkTargetFile(baseTarget, sourceFile);
     if (targetFile) {
       const pageId = await this.getPageIdFromFrontmatterAsync(targetFile);
       if (pageId) {
@@ -225,6 +421,38 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     }
 
     return null;
+  }
+
+  private resolveLinkTargetFile(
+    linkTarget: string,
+    sourceFile: TFile
+  ): TFile | null {
+    const normalized = linkTarget.replace(/\\/g, "/").trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const direct = this.app.vault.getAbstractFileByPath(normalized);
+    if (direct instanceof TFile) {
+      return direct;
+    }
+
+    const cached = this.app.metadataCache.getFirstLinkpathDest(
+      normalized,
+      sourceFile.path
+    );
+    if (cached) {
+      return cached;
+    }
+
+    const lower = normalized.toLowerCase();
+    const hasExtension = normalized.includes(".");
+    const matches = this.app.vault.getFiles().filter((file) => {
+      const candidate = hasExtension ? file.name : file.basename;
+      return candidate.toLowerCase() === lower;
+    });
+
+    return matches.length === 1 ? matches[0] : null;
   }
 
   private async getPageIdFromFrontmatterAsync(
