@@ -53,13 +53,14 @@ export default class ObsidianToConfluencePlugin extends Plugin {
 
   private async syncFile(file: TFile): Promise<void> {
     const content = await this.app.vault.read(file);
-    const html = convertMarkdownToConfluence(content, {
-      convertWikiLinks: this.settings.convertWikiLinks,
+    const client = new ConfluenceClient(this.settings);
+    const linkedContent = await this.resolveWikiLinks(content, file, client);
+    const html = convertMarkdownToConfluence(linkedContent, {
+      convertWikiLinks: false,
       handleEmbedsAsText: true
     });
 
     const title = this.getTitleForFile(file);
-    const client = new ConfluenceClient(this.settings);
 
     const pageIdFromFrontmatter = this.getPageIdFromFrontmatter(file);
     let resolvedPageId: string | null = pageIdFromFrontmatter;
@@ -96,6 +97,191 @@ export default class ObsidianToConfluencePlugin extends Plugin {
         frontmatter[frontmatterKey] = resolvedPageId;
       });
     }
+  }
+
+  private async resolveWikiLinks(
+    markdown: string,
+    sourceFile: TFile,
+    client: ConfluenceClient
+  ): Promise<string> {
+    if (!this.settings.convertWikiLinks) {
+      return markdown;
+    }
+
+    const regex = /\[\[([^\]]+)\]\]/g;
+    const occurrences: Array<{
+      full: string;
+      inner: string;
+      start: number;
+      end: number;
+      target: string;
+      label: string;
+      baseTarget: string;
+    }> = [];
+    const targets = new Set<string>();
+
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(markdown)) !== null) {
+      const start = match.index;
+      if (start > 0 && markdown[start - 1] === "!") {
+        continue;
+      }
+
+      const inner = match[1];
+      const { target, label, baseTarget } = this.parseWikiLink(inner);
+      if (!baseTarget) {
+        continue;
+      }
+
+      occurrences.push({
+        full: match[0],
+        inner,
+        start,
+        end: start + match[0].length,
+        target,
+        label,
+        baseTarget
+      });
+      targets.add(baseTarget);
+    }
+
+    if (!occurrences.length) {
+      return markdown;
+    }
+
+    const resolved = new Map<string, string | null>();
+    const resolvedEntries = await Promise.all(
+      Array.from(targets).map(async (baseTarget) => {
+        const url = await this.resolveConfluenceUrlForTarget(
+          baseTarget,
+          sourceFile,
+          client
+        );
+        return [baseTarget, url] as const;
+      })
+    );
+
+    resolvedEntries.forEach(([baseTarget, url]) => {
+      resolved.set(baseTarget, url);
+    });
+
+    let output = "";
+    let lastIndex = 0;
+    for (const occurrence of occurrences) {
+      output += markdown.slice(lastIndex, occurrence.start);
+      const url = resolved.get(occurrence.baseTarget);
+      if (url) {
+        output += `[${occurrence.label}](${url})`;
+      } else {
+        output += occurrence.full;
+      }
+      lastIndex = occurrence.end;
+    }
+    output += markdown.slice(lastIndex);
+
+    return output;
+  }
+
+  private parseWikiLink(inner: string): {
+    target: string;
+    label: string;
+    baseTarget: string;
+  } {
+    const parts = inner.split("|");
+    const rawTarget = (parts[0] || "").trim();
+    const label = (parts[1] || rawTarget).trim();
+    const baseTarget = rawTarget
+      .split("#")[0]
+      .split("^")[0]
+      .trim();
+
+    return {
+      target: rawTarget,
+      label: label || rawTarget,
+      baseTarget
+    };
+  }
+
+  private async resolveConfluenceUrlForTarget(
+    baseTarget: string,
+    sourceFile: TFile,
+    client: ConfluenceClient
+  ): Promise<string | null> {
+    const targetFile = this.app.metadataCache.getFirstLinkpathDest(
+      baseTarget,
+      sourceFile.path
+    );
+    if (targetFile) {
+      const pageId = await this.getPageIdFromFrontmatterAsync(targetFile);
+      if (pageId) {
+        return client.getPageUrl(pageId);
+      }
+    }
+
+    const title = targetFile ? targetFile.basename : baseTarget;
+    const existing = await client.findPageByTitle(this.settings.spaceKey, title);
+    if (existing) {
+      return client.getPageUrl(existing.id);
+    }
+
+    return null;
+  }
+
+  private async getPageIdFromFrontmatterAsync(
+    file: TFile
+  ): Promise<string | null> {
+    const cached = this.getPageIdFromFrontmatter(file);
+    if (cached) {
+      return cached;
+    }
+
+    const key = this.settings.pageIdFrontmatterKey.trim();
+    if (!key) {
+      return null;
+    }
+
+    const content = await this.app.vault.read(file);
+    return this.extractFrontmatterValue(content, key);
+  }
+
+  private extractFrontmatterValue(
+    content: string,
+    key: string
+  ): string | null {
+    if (!content.startsWith("---")) {
+      return null;
+    }
+
+    const lines = content.split(/\r?\n/);
+    if (lines.length < 2) {
+      return null;
+    }
+
+    const keyPattern = new RegExp(
+      `^\\\\s*${this.escapeRegExp(key)}\\\\s*:\\\\s*(.+?)\\\\s*$`
+    );
+
+    for (let i = 1; i < lines.length; i += 1) {
+      const line = lines[i];
+      if (line.trim() === "---" || line.trim() === "...") {
+        break;
+      }
+
+      const match = line.match(keyPattern);
+      if (match) {
+        const raw = match[1].trim();
+        if (!raw) {
+          return null;
+        }
+        return raw.replace(/^['"]|['"]$/g, "").trim() || null;
+      }
+    }
+
+    return null;
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   private getPageIdFromFrontmatter(file: TFile): string | null {

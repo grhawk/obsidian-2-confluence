@@ -41,7 +41,7 @@ Sync the active Obsidian note to Confluence using the REST API. The plugin conve
 - From API: `GET .../wiki/rest/api/content?title=Page%20Title&spaceKey=SPACE` and read `results[0].id`.
 
 ## Notes
-- Wiki links are converted to regular Markdown links (e.g. `[[Note|Alias]]` -> `[Alias](Note)`).
+- Wiki links are converted to Confluence URLs when possible (via frontmatter page ID or title match). Unresolved wiki links are left as `[[...]]`.
 - Embedded files (`![[file]]`) are converted to plain text markers; attachments are not uploaded yet.
 - Confluence base URL should include `/wiki` for Confluence Cloud (e.g. `https://your-domain.atlassian.net/wiki`).
 

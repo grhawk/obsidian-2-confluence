@@ -114,6 +114,12 @@ export class ConfluenceClient {
     });
   }
 
+  getPageUrl(id: string): string {
+    return `${this.baseUrl}/pages/viewpage.action?pageId=${encodeURIComponent(
+      id
+    )}`;
+  }
+
   private buildAuthHeader(email: string, token: string): string {
     const raw = `${email}:${token}`;
     const encoded = typeof btoa === "function" ? btoa(raw) : raw;
