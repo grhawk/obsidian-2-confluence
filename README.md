@@ -1,6 +1,6 @@
-# Obsidian to Confluence
+# Confluence Publisher
 
-Sync the active Obsidian note to Confluence using the REST API. The plugin converts Obsidian-flavored Markdown to HTML (Confluence storage format) and updates or creates pages in your target space.
+Sync the active note from Obsidian to Confluence using the REST API. The plugin converts Obsidian-flavored Markdown to HTML (Confluence storage format) and updates or creates pages in your target space.
 
 ## Features
 - Convert Markdown to Confluence storage HTML.
