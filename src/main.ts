@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile } from "obsidian";
+import { normalizePath, Notice, Plugin, TFile } from "obsidian";
 import { ConfluenceClient } from "./confluence";
 import { convertMarkdownToConfluence } from "./markdown";
 import {
@@ -444,7 +444,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     linkTarget: string,
     sourceFile: TFile
   ): TFile | null {
-    const normalized = linkTarget.replace(/\\/g, "/").trim();
+    const normalized = normalizePath(linkTarget);
     if (!normalized) {
       return null;
     }
@@ -462,14 +462,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
       return cached;
     }
 
-    const lower = normalized.toLowerCase();
-    const hasExtension = normalized.includes(".");
-    const matches = this.app.vault.getFiles().filter((file) => {
-      const candidate = hasExtension ? file.name : file.basename;
-      return candidate.toLowerCase() === lower;
-    });
-
-    return matches.length === 1 ? matches[0] : null;
+    return null;
   }
 
   private async getPageIdFromFrontmatterAsync(

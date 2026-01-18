@@ -33,8 +33,6 @@ export class ConfluenceSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Confluence Sync Settings" });
-
     new Setting(containerEl)
       .setName("Confluence base URL")
       .setDesc("Example: https://your-domain.atlassian.net/wiki")
