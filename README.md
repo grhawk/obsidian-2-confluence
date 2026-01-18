@@ -11,7 +11,7 @@ Sync the active Obsidian note to Confluence using the REST API. The plugin conve
 ## Setup
 1. Install dependencies: `npm install`
 2. Build the plugin: `npm run build`
-3. Copy `main.js`, `manifest.json`, and `styles.css` to your vault plugin folder (e.g. `.obsidian/plugins/obsidian-2-confluence/`).
+3. Copy `main.js`, `manifest.json`, and `styles.css` to your vault plugin folder (e.g. `.obsidian/plugins/confluence-publisher/`).
 4. Enable the plugin in Obsidian.
 5. Configure settings: base URL, space key, auth email, and API token.
 
