@@ -50,5 +50,11 @@ Sync the active Obsidian note to Confluence using the REST API. The plugin conve
 - 404 errors usually mean the base URL is wrong or the page ID/space key is invalid. The base URL should be the site root (include `/wiki` for Cloud) and must not include `/rest/api`.
 - If you set `confluencePageId`, make sure the page exists and you have access; otherwise remove it to force create.
 
+## Community Plugin Release Checklist
+1. Update `manifest.json` version and `package.json` version to match the release tag (e.g. `0.1.1`).
+2. Run `npm run build` and verify `main.js` is generated.
+3. Create a GitHub release tagged `vX.Y.Z` and upload `main.js`, `manifest.json`, and `styles.css` as assets.
+4. Submit a PR to `obsidianmd/obsidian-releases` updating `community-plugins.json` with this plugin entry.
+
 ## License
 MIT

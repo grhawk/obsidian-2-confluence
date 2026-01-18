@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
   "description": "Sync the active note to Confluence using the REST API.",
-  "author": "",
-  "authorUrl": "",
+  "author": "Riccardo Petraglia",
+  "authorUrl": "https://github.com/grhawk",
   "isDesktopOnly": false
 }
