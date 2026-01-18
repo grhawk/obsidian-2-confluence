@@ -1,7 +1,7 @@
 {
   "id": "confluence-publisher",
   "name": "Obsidian to Confluence",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.5.0",
   "description": "Sync the active note to Confluence using the REST API.",
   "author": "Riccardo Petraglia",
