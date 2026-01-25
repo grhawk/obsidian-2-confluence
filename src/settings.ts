@@ -8,6 +8,7 @@ export interface ConfluenceSettings {
   apiToken: string;
   parentPageId: string;
   pageIdFrontmatterKey: string;
+  parentPageIdFrontmatterKey: string;
   convertWikiLinks: boolean;
 }
 
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: ConfluenceSettings = {
   apiToken: "",
   parentPageId: "",
   pageIdFrontmatterKey: "confluencePageId",
+  parentPageIdFrontmatterKey: "confluenceParentPageId",
   convertWikiLinks: true
 };
 
@@ -34,7 +36,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("Confluence base URL")
+      .setName("Base URL")
       .setDesc("Example: https://your-domain.atlassian.net/wiki")
       .addText((text) =>
         text
@@ -48,7 +50,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Space key")
-      .setDesc("Confluence space key for new pages.")
+      .setDesc("Space key for new pages.")
       .addText((text) =>
         text
           .setPlaceholder("DOCS")
@@ -61,7 +63,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auth email")
-      .setDesc("Email address used with your Confluence API token.")
+      .setDesc("Email address used with your API token.")
       .addText((text) =>
         text
           .setPlaceholder("you@example.com")
@@ -73,8 +75,8 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("API token")
-      .setDesc("API token for Confluence (stored locally).")
+      .setName("Api token")
+      .setDesc("API token for your account (stored locally).")
       .addText((text) => {
         text.inputEl.type = "password";
         text
@@ -87,8 +89,8 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Parent page ID")
-      .setDesc("Optional parent page ID for newly created pages.")
+      .setName("Parent page id")
+      .setDesc("Optional parent page id for newly created pages.")
       .addText((text) =>
         text
           .setPlaceholder("123456789")
@@ -100,8 +102,8 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Frontmatter key for page ID")
-      .setDesc("Frontmatter field to store the Confluence page ID.")
+      .setName("Frontmatter key for page id")
+      .setDesc("Frontmatter field to store the page id.")
       .addText((text) =>
         text
           .setPlaceholder("confluencePageId")
@@ -113,8 +115,23 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Frontmatter key for parent page id")
+      .setDesc(
+        "Optional frontmatter field to override the parent page id per note."
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("confluenceParentPageId")
+          .setValue(this.plugin.settings.parentPageIdFrontmatterKey)
+          .onChange(async (value) => {
+            this.plugin.settings.parentPageIdFrontmatterKey = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName("Convert wiki links")
-      .setDesc("Convert Obsidian wiki links to standard Markdown links.")
+      .setDesc("Convert wiki links to standard markdown links.")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.convertWikiLinks)

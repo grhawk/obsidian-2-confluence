@@ -25,15 +25,6 @@ interface ConfluenceAttachmentResult {
   results: ConfluenceAttachment[];
 }
 
-interface ConfluencePageResponse extends ConfluencePage {
-  body?: {
-    storage?: {
-      value: string;
-      representation: string;
-    };
-  };
-}
-
 export class ConfluenceClient {
   private baseUrl: string;
   private authHeader: string;

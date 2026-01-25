@@ -36,7 +36,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
 
     this.addCommand({
       id: "sync-active-note-to-confluence",
-      name: "Sync active note to Confluence",
+      name: "Sync active note",
       callback: () => {
         void this.syncActiveNote();
       }
@@ -51,22 +51,22 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     }
 
     if (file.extension !== "md") {
-      new Notice("Active file is not a Markdown note.");
+      new Notice("Active file is not a markdown note.");
       return;
     }
 
     const missing = this.getMissingSettings();
     if (missing.length) {
-      new Notice(`Configure Confluence settings: ${missing.join(", ")}.`);
+      new Notice(`Configure sync settings: ${missing.join(", ")}.`);
       return;
     }
 
     try {
       await this.syncFile(file);
-      new Notice("Synced to Confluence.");
+      new Notice("Sync complete.");
     } catch (error) {
       console.error("Confluence sync failed", error);
-      new Notice("Confluence sync failed. Check console for details.");
+      new Notice("Sync failed. Check console for details.");
     }
   }
 
@@ -74,8 +74,10 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     const content = await this.app.vault.read(file);
     const contentWithoutFrontmatter = this.stripFrontmatter(content);
     const client = new ConfluenceClient(this.settings);
-    const { markdown: withImages, attachments } =
-      await this.resolveImageEmbeds(contentWithoutFrontmatter, file);
+    const { markdown: withImages, attachments } = this.resolveImageEmbeds(
+      contentWithoutFrontmatter,
+      file
+    );
     const linkedContent = await this.resolveWikiLinks(withImages, file, client);
     const html = convertMarkdownToConfluence(linkedContent, {
       convertWikiLinks: false,
@@ -108,11 +110,12 @@ export default class ObsidianToConfluencePlugin extends Plugin {
         );
         resolvedPageId = updated.id;
       } else {
+        const parentPageId = await this.getParentPageIdForFile(file);
         const created = await client.createPage(
           this.settings.spaceKey,
           title,
           htmlWithImages,
-          this.settings.parentPageId || undefined
+          parentPageId || undefined
         );
         resolvedPageId = created.id;
       }
@@ -146,10 +149,10 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     return content;
   }
 
-  private async resolveImageEmbeds(
+  private resolveImageEmbeds(
     markdown: string,
     sourceFile: TFile
-  ): Promise<{ markdown: string; attachments: ImageAttachment[] }> {
+  ): { markdown: string; attachments: ImageAttachment[] } {
     const attachments: ImageAttachment[] = [];
     const attachmentByPath = new Map<string, ImageAttachment>();
     const usedNames = new Map<string, number>();
@@ -257,7 +260,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     for (const attachment of attachments) {
       const escapedUrl = this.escapeRegExp(attachment.placeholderUrl);
       const imgPattern = new RegExp(
-        `<img[^>]*src=[\"']${escapedUrl}[\"'][^>]*>`,
+        `<img[^>]*src=["']${escapedUrl}["'][^>]*>`,
         "g"
       );
       const filename = this.escapeHtmlAttribute(attachment.filename);
@@ -482,6 +485,41 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     return this.extractFrontmatterValue(content, key);
   }
 
+  private async getParentPageIdForFile(file: TFile): Promise<string | null> {
+    const key = this.settings.parentPageIdFrontmatterKey.trim();
+    if (key) {
+      const cached = this.getFrontmatterValueFromCache(file, key);
+      if (cached) {
+        return cached;
+      }
+
+      const content = await this.app.vault.read(file);
+      const extracted = this.extractFrontmatterValue(content, key);
+      if (extracted) {
+        return extracted;
+      }
+    }
+
+    return this.settings.parentPageId.trim() || null;
+  }
+
+  private getFrontmatterValueFromCache(
+    file: TFile,
+    key: string
+  ): string | null {
+    const cache = this.app.metadataCache.getFileCache(file);
+    const raw = cache?.frontmatter?.[key];
+    if (typeof raw === "string") {
+      return raw.trim() || null;
+    }
+
+    if (typeof raw === "number") {
+      return String(raw);
+    }
+
+    return null;
+  }
+
   private extractFrontmatterValue(
     content: string,
     key: string
@@ -528,17 +566,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
       return null;
     }
 
-    const cache = this.app.metadataCache.getFileCache(file);
-    const raw = cache?.frontmatter?.[key];
-    if (typeof raw === "string") {
-      return raw.trim() || null;
-    }
-
-    if (typeof raw === "number") {
-      return String(raw);
-    }
-
-    return null;
+    return this.getFrontmatterValueFromCache(file, key);
   }
 
   private getTitleForFile(file: TFile): string {

@@ -19,7 +19,7 @@ Sync the active note from Obsidian to Confluence using the REST API. The plugin 
 - Run the command: `Sync active note to Confluence`.
 - The plugin will look for a frontmatter field (default `confluencePageId`) to update an existing page.
 - If no page ID is found, it searches by title in the configured space and updates the first match.
-- Otherwise, it creates a new page and stores the page ID in frontmatter.
+- Otherwise, it creates a new page and stores the page ID in frontmatter. You can override the parent page per note using frontmatter (default key `confluenceParentPageId`).
 
 ## Syncing a Page
 1. Open the note you want to sync.
