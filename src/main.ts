@@ -51,7 +51,7 @@ export default class ObsidianToConfluencePlugin extends Plugin {
     }
 
     if (file.extension !== "md") {
-      new Notice("Active file is not a markdown note.");
+      new Notice("Active file is not a note.");
       return;
     }
 
@@ -481,26 +481,61 @@ export default class ObsidianToConfluencePlugin extends Plugin {
       return null;
     }
 
-    const content = await this.app.vault.read(file);
-    return this.extractFrontmatterValue(content, key);
+    return this.getFrontmatterValueWithFallback(file, key, ["confluencePageId"]);
   }
 
   private async getParentPageIdForFile(file: TFile): Promise<string | null> {
     const key = this.settings.parentPageIdFrontmatterKey.trim();
     if (key) {
-      const cached = this.getFrontmatterValueFromCache(file, key);
-      if (cached) {
-        return cached;
-      }
-
-      const content = await this.app.vault.read(file);
-      const extracted = this.extractFrontmatterValue(content, key);
-      if (extracted) {
-        return extracted;
+      const parentValue = await this.getFrontmatterValueWithFallback(
+        file,
+        key,
+        ["confluenceParentPageId"]
+      );
+      if (parentValue) {
+        return parentValue;
       }
     }
 
     return this.settings.parentPageId.trim() || null;
+  }
+
+  private async getFrontmatterValueWithFallback(
+    file: TFile,
+    key: string,
+    legacyKeys: string[]
+  ): Promise<string | null> {
+    const cached = this.getFrontmatterValueFromCache(file, key);
+    if (cached) {
+      return cached;
+    }
+
+    const content = await this.app.vault.read(file);
+    const extracted = this.extractFrontmatterValue(content, key);
+    if (extracted) {
+      return extracted;
+    }
+
+    if (
+      key !== DEFAULT_SETTINGS.pageIdFrontmatterKey &&
+      key !== DEFAULT_SETTINGS.parentPageIdFrontmatterKey
+    ) {
+      return null;
+    }
+
+    for (const legacyKey of legacyKeys) {
+      const legacyCached = this.getFrontmatterValueFromCache(file, legacyKey);
+      if (legacyCached) {
+        return legacyCached;
+      }
+
+      const legacyExtracted = this.extractFrontmatterValue(content, legacyKey);
+      if (legacyExtracted) {
+        return legacyExtracted;
+      }
+    }
+
+    return null;
   }
 
   private getFrontmatterValueFromCache(
@@ -566,7 +601,16 @@ export default class ObsidianToConfluencePlugin extends Plugin {
       return null;
     }
 
-    return this.getFrontmatterValueFromCache(file, key);
+    const cached = this.getFrontmatterValueFromCache(file, key);
+    if (cached) {
+      return cached;
+    }
+
+    if (key !== DEFAULT_SETTINGS.pageIdFrontmatterKey) {
+      return null;
+    }
+
+    return this.getFrontmatterValueFromCache(file, "confluencePageId");
   }
 
   private getTitleForFile(file: TFile): string {

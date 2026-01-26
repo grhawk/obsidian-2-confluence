@@ -18,8 +18,8 @@ export const DEFAULT_SETTINGS: ConfluenceSettings = {
   authEmail: "",
   apiToken: "",
   parentPageId: "",
-  pageIdFrontmatterKey: "confluencePageId",
-  parentPageIdFrontmatterKey: "confluenceParentPageId",
+  pageIdFrontmatterKey: "confluence-page-id",
+  parentPageIdFrontmatterKey: "confluence-parent-page-id",
   convertWikiLinks: true
 };
 
@@ -36,7 +36,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("Base URL")
+      .setName("Base url")
       .setDesc("Example: https://your-domain.atlassian.net/wiki")
       .addText((text) =>
         text
@@ -53,7 +53,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       .setDesc("Space key for new pages.")
       .addText((text) =>
         text
-          .setPlaceholder("DOCS")
+          .setPlaceholder("docs")
           .setValue(this.plugin.settings.spaceKey)
           .onChange(async (value) => {
             this.plugin.settings.spaceKey = value.trim();
@@ -63,7 +63,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auth email")
-      .setDesc("Email address used with your API token.")
+      .setDesc("Email address used with your api token.")
       .addText((text) =>
         text
           .setPlaceholder("you@example.com")
@@ -76,7 +76,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Api token")
-      .setDesc("API token for your account (stored locally).")
+      .setDesc("Api token for your account (stored locally).")
       .addText((text) => {
         text.inputEl.type = "password";
         text
@@ -106,7 +106,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       .setDesc("Frontmatter field to store the page id.")
       .addText((text) =>
         text
-          .setPlaceholder("confluencePageId")
+          .setPlaceholder("confluence-page-id")
           .setValue(this.plugin.settings.pageIdFrontmatterKey)
           .onChange(async (value) => {
             this.plugin.settings.pageIdFrontmatterKey = value.trim();
@@ -121,7 +121,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       )
       .addText((text) =>
         text
-          .setPlaceholder("confluenceParentPageId")
+          .setPlaceholder("confluence-parent-page-id")
           .setValue(this.plugin.settings.parentPageIdFrontmatterKey)
           .onChange(async (value) => {
             this.plugin.settings.parentPageIdFrontmatterKey = value.trim();
