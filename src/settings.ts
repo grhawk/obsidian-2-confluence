@@ -36,7 +36,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("Base url")
+      .setName("Base URL")
       .setDesc("Example: https://your-domain.atlassian.net/wiki")
       .addText((text) =>
         text
@@ -63,7 +63,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auth email")
-      .setDesc("Email address used with your api token.")
+      .setDesc("Email address used with your API token.")
       .addText((text) =>
         text
           .setPlaceholder("you@example.com")
@@ -75,8 +75,8 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Api token")
-      .setDesc("Api token for your account (stored locally).")
+      .setName("API token")
+      .setDesc("API token for your account (stored locally).")
       .addText((text) => {
         text.inputEl.type = "password";
         text
@@ -89,8 +89,8 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Parent page id")
-      .setDesc("Optional parent page id for newly created pages.")
+      .setName("Parent page ID")
+      .setDesc("Optional parent page ID for newly created pages.")
       .addText((text) =>
         text
           .setPlaceholder("123456789")
@@ -102,8 +102,8 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Frontmatter key for page id")
-      .setDesc("Frontmatter field to store the page id.")
+      .setName("Frontmatter key for page ID")
+      .setDesc("Frontmatter field to store the page ID.")
       .addText((text) =>
         text
           .setPlaceholder("confluence-page-id")
@@ -115,9 +115,9 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Frontmatter key for parent page id")
+      .setName("Frontmatter key for parent page ID")
       .setDesc(
-        "Optional frontmatter field to override the parent page id per note."
+        "Optional frontmatter field to override the parent page ID per note."
       )
       .addText((text) =>
         text
@@ -131,7 +131,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Convert wiki links")
-      .setDesc("Convert wiki links to standard markdown links.")
+      .setDesc("Convert wiki links to standard Markdown links.")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.convertWikiLinks)
