@@ -53,7 +53,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       .setDesc("Space key for new pages.")
       .addText((text) =>
         text
-          .setPlaceholder("docs")
+          .setPlaceholder("Example: docs")
           .setValue(this.plugin.settings.spaceKey)
           .onChange(async (value) => {
             this.plugin.settings.spaceKey = value.trim();
@@ -66,7 +66,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       .setDesc("Email address used with your API token.")
       .addText((text) =>
         text
-          .setPlaceholder("you@example.com")
+          .setPlaceholder("Example: you@example.com")
           .setValue(this.plugin.settings.authEmail)
           .onChange(async (value) => {
             this.plugin.settings.authEmail = value.trim();
@@ -106,7 +106,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       .setDesc("Frontmatter field to store the page ID.")
       .addText((text) =>
         text
-          .setPlaceholder("confluence-page-id")
+          .setPlaceholder("Example: confluence-page-id")
           .setValue(this.plugin.settings.pageIdFrontmatterKey)
           .onChange(async (value) => {
             this.plugin.settings.pageIdFrontmatterKey = value.trim();
@@ -121,7 +121,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       )
       .addText((text) =>
         text
-          .setPlaceholder("confluence-parent-page-id")
+          .setPlaceholder("Example: confluence-parent-page-id")
           .setValue(this.plugin.settings.parentPageIdFrontmatterKey)
           .onChange(async (value) => {
             this.plugin.settings.parentPageIdFrontmatterKey = value.trim();
