@@ -106,7 +106,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       .setDesc("Frontmatter field to store the page ID.")
       .addText((text) =>
         text
-          .setPlaceholder("Example: confluence page id")
+          .setPlaceholder("Example: confluence page ID")
           .setValue(this.plugin.settings.pageIdFrontmatterKey)
           .onChange(async (value) => {
             this.plugin.settings.pageIdFrontmatterKey = value.trim();
@@ -121,7 +121,7 @@ export class ConfluenceSettingTab extends PluginSettingTab {
       )
       .addText((text) =>
         text
-          .setPlaceholder("Example: confluence parent page id")
+          .setPlaceholder("Example: confluence parent page ID")
           .setValue(this.plugin.settings.parentPageIdFrontmatterKey)
           .onChange(async (value) => {
             this.plugin.settings.parentPageIdFrontmatterKey = value.trim();
